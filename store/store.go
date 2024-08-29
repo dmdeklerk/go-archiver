@@ -470,9 +470,6 @@ func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identi
 
 	// Start from the last entry within bounds and iterate backwards
 	for ok := iter.Last(); ok; ok = iter.Prev() {
-		if len(transactions) >= maxTransactions {
-			break // Stop collecting transactions if max limit is reached
-		}
 
 		value, err := iter.ValueAndErr()
 		if err != nil {
