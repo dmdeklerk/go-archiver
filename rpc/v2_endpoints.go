@@ -380,3 +380,18 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 	}, nil
 
 }
+
+func (s *Server) GetIdentityTransferDataV2(ctx context.Context, req *protobuff.GetIdentityTransferDataRequestV2) (*protobuff.GetIdentityTransferDataResponseV2, error) {
+
+	txData, nextEndTick, nextTxnIndexStart, err := s.store.GetTransferTransactionsFromEnd(ctx, req.Identity, uint64(req.GetEndTick()), int(req.GetTxnIndexStart()), int(req.GetMaxTransactions()))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "getting transfer transactions: %v", err)
+	}
+
+	return &protobuff.GetIdentityTransferDataResponseV2{
+		NextEndTick:       uint32(nextEndTick),
+		NextTxnIndexStart: uint32(nextTxnIndexStart),
+		Transactions:      txData,
+	}, nil
+
+}

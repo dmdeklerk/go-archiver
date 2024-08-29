@@ -3,12 +3,13 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"strconv"
+
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/proto"
-	"strconv"
 )
 
 const maxTickNumber = ^uint64(0)
@@ -449,6 +450,94 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 	}
 
 	return transferTxs, nil
+}
+
+func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identity string, endTick uint64, txnIndexStart, maxTransactions int) ([]*protobuff.TransactionData, int, int, error) {
+	partialKey := identityTransferTransactions(identity)
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: binary.BigEndian.AppendUint64(partialKey, 0),
+		UpperBound: binary.BigEndian.AppendUint64(partialKey, endTick+1),
+	})
+	if err != nil {
+		return nil, 0, 0, errors.Wrap(err, "creating iterator")
+	}
+	defer iter.Close()
+
+	var transactions []*protobuff.TransactionData
+	firstTick := true
+	nextEndTick := 0
+	nextTxnIndexStart := 0
+
+	// Start from the last entry within bounds and iterate backwards
+	for ok := iter.Last(); ok; ok = iter.Prev() {
+		if len(transactions) >= maxTransactions {
+			break // Stop collecting transactions if max limit is reached
+		}
+
+		value, err := iter.ValueAndErr()
+		if err != nil {
+			return nil, 0, 0, errors.Wrap(err, "getting value from iterator")
+		}
+
+		var perTick protobuff.TransferTransactionsPerTick
+		err = proto.Unmarshal(value, &perTick)
+		if err != nil {
+			return nil, 0, 0, errors.Wrap(err, "unmarshalling transfer transactions per tick")
+		}
+		nextEndTick = int(perTick.TickNumber)
+
+		if firstTick && txnIndexStart >= len(perTick.Transactions) {
+			continue // Skip this tick if txnIndexStart is out of bounds
+		}
+
+		startIdx := len(perTick.Transactions) - 1
+		if firstTick && txnIndexStart < len(perTick.Transactions) {
+			startIdx = txnIndexStart
+		}
+
+		// Process transactions in reverse from startIdx to 0
+		for i := startIdx; i >= 0; i-- {
+			transaction := perTick.Transactions[i]
+
+			txStatus, err := s.GetTransactionStatus(ctx, transaction.TxId)
+			if err != nil {
+				return nil, 0, 0, errors.Wrap(err, "getting transaction status")
+			}
+
+			// We only want valid transfers
+			if !txStatus.MoneyFlew {
+				continue
+			}
+
+			tickData, err := s.GetTickData(ctx, perTick.TickNumber)
+			if err != nil {
+				return nil, 0, 0, errors.Wrap(err, "getting tick data")
+			}
+
+			transactions = append(transactions, &protobuff.TransactionData{
+				Transaction: transaction,
+				Timestamp:   tickData.Timestamp,
+				MoneyFlew:   txStatus.MoneyFlew,
+			})
+
+			if len(transactions) >= maxTransactions {
+				// We have stopped processing transactions mid-range, this means that the next pagination should
+				// start where we have now left off.
+				if i > 0 {
+					nextTxnIndexStart = i - 1
+				}
+				break
+			}
+		}
+
+		if nextEndTick > 0 {
+			nextEndTick--
+		}
+
+		firstTick = false // Reset firstTick flag after processing the first tick
+	}
+
+	return transactions, nextEndTick, nextTxnIndexStart, nil
 }
 
 func (s *PebbleStore) PutChainDigest(ctx context.Context, tickNumber uint32, digest []byte) error {

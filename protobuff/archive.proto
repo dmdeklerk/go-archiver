@@ -220,6 +220,12 @@ message GetIdentityTransfersInTickRangeResponseV2 {
   repeated PerTickIdentityTransfers transactions = 1;
 }
 
+message GetIdentityTransferDataResponseV2 {
+  uint32 next_end_tick = 1;
+  uint32 next_txn_index_start = 2;
+  repeated TransactionData transactions = 3;
+}
+
 //SendMany Transaction
 message SendManyTransfer {
   string dest_id = 1;
@@ -303,6 +309,12 @@ message GetTransferTransactionsPerTickRequestV2 {
   bool desc = 5;
 }
 
+message GetIdentityTransferDataRequestV2 {
+  string identity = 1;
+  uint32 end_tick = 2;
+  uint32 txn_index_start = 3;
+  uint32 max_transactions = 4;
+}
 
 service ArchiveService {
 
@@ -362,6 +374,12 @@ service ArchiveService {
   rpc GetIdentityTransfersInTickRangeV2(GetTransferTransactionsPerTickRequestV2) returns (GetIdentityTransfersInTickRangeResponseV2) { // Uses V1 request
     option (google.api.http) = {
       get: "/v2/identities/{identity}/transfers"
+    };
+  };
+
+  rpc GetIdentityTransferDataV2(GetIdentityTransferDataRequestV2) returns (GetIdentityTransferDataResponseV2) {
+    option (google.api.http) = {
+      get: "/v2/identities/{identity}/transfer-data"
     };
   };
 
