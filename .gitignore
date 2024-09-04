@@ -11,3 +11,6 @@ store/*.log
 
 go-archiver
 *.swagger.json
+
+# Exclude deploy script
+deploy.sh

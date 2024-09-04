@@ -453,6 +453,21 @@ func (s *PebbleStore) GetTransferTransactions(ctx context.Context, identity stri
 }
 
 func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identity string, endTick uint64, txnIndexStart, maxTransactions int) ([]*protobuff.TransactionData, int, int, error) {
+
+	// The user can omit the {endTick} parameter in which case we start at the last processed tick
+	if endTick == 0 {
+		lastProcessedTick, err := s.GetLastProcessedTick(ctx)
+		if err != nil {
+			return nil, 0, 0, errors.Wrap(err, "creating last processed tick")
+		}
+		endTick = uint64(lastProcessedTick.TickNumber)
+	}
+
+	// The user can omit the {maxTransactions} parameter in which case we default to 1000
+	if maxTransactions == 0 {
+		maxTransactions = 1000
+	}
+
 	partialKey := identityTransferTransactions(identity)
 	iter, err := s.db.NewIter(&pebble.IterOptions{
 		LowerBound: binary.BigEndian.AppendUint64(partialKey, 0),
@@ -464,7 +479,7 @@ func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identi
 	defer iter.Close()
 
 	var transactions []*protobuff.TransactionData
-	firstTick := true
+	firstTick := true // this is the first tick we process, this affects if we consider the start index in the transaction array, or start at index 0
 	nextEndTick := 0
 	nextTxnIndexStart := 0
 
@@ -484,16 +499,21 @@ func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identi
 		nextEndTick = int(perTick.TickNumber)
 
 		if firstTick && txnIndexStart >= len(perTick.Transactions) {
+			firstTick = false
 			continue // Skip this tick if txnIndexStart is out of bounds
 		}
 
-		startIdx := len(perTick.Transactions) - 1
-		if firstTick && txnIndexStart < len(perTick.Transactions) {
-			startIdx = txnIndexStart
+		// For simpler processing logic we reverse the Transaction array in place
+		for i, j := 0, len(perTick.Transactions)-1; i < j; i, j = i+1, j-1 {
+			perTick.Transactions[i], perTick.Transactions[j] = perTick.Transactions[j], perTick.Transactions[i]
 		}
 
-		// Process transactions in reverse from startIdx to 0
-		for i := startIdx; i >= 0; i-- {
+		// If its not the first tick we start processing at index 0
+		if !firstTick {
+			txnIndexStart = 0
+		}
+
+		for i := txnIndexStart; i < len(perTick.Transactions); i++ {
 			transaction := perTick.Transactions[i]
 
 			txStatus, err := s.GetTransactionStatus(ctx, transaction.TxId)
@@ -518,16 +538,18 @@ func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identi
 			})
 
 			if len(transactions) >= maxTransactions {
-				// We have stopped processing transactions mid-range, this means that the next pagination should
-				// start where we have now left off.
-				if i > 0 {
-					nextTxnIndexStart = i - 1
+				// We might have stopped processing transactions mid-range, this means that the next pagination should
+				// start where we have now left off. Thats unless we reached the end of the array
+				if i < (len(perTick.Transactions) - 1) {
+					nextTxnIndexStart = i + 1
 				}
-				break
+				return transactions, nextEndTick, nextTxnIndexStart, nil
 			}
 		}
 
+		// We fully processed the current tick so we can safely move to the next
 		if nextEndTick > 0 {
+			nextTxnIndexStart = 0
 			nextEndTick--
 		}
 
