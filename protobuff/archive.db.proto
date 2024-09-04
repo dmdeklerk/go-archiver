@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package qubic.archiver.archive.pb.db;
+
+option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+// This proto file contains message types used as values in the database.
+
+message QxAssetTransferDB {
+  string source_id = 1;
+  string dest_id = 2;
+  uint64 amount = 3;
+  string tx_id = 4;
+}
+
+message QxAssetTransfersPerTickDB {
+  uint32 tick_number = 1;
+  repeated QxAssetTransferDB transfers = 2;
+}

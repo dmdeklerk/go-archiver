@@ -19,6 +19,7 @@ const (
 	TransactionStatus            = 0x11
 	StoreDigest                  = 0x12
 	EmptyTicksPerEpoch           = 0x13
+	QxIdentityAssetTransfers     = 0x14
 )
 
 func emptyTicksPerEpochKey(epoch uint32) []byte {
@@ -122,6 +123,15 @@ func txStatusKey(txID string) []byte {
 func tickTxStatusKey(tickNumber uint64) []byte {
 	key := []byte{TickTransactionsStatus}
 	key = binary.BigEndian.AppendUint64(key, tickNumber)
+
+	return key
+}
+
+func identityQxAssetTransfersKey(identity string, assetId string, tickNumber uint32) []byte {
+	key := []byte{QxIdentityAssetTransfers}
+	key = append(key, []byte(identity)...)
+	key = append(key, []byte(assetId)...)
+	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key
 }

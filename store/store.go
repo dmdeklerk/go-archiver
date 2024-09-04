@@ -826,3 +826,21 @@ func (s *PebbleStore) DeleteEmptyTicksKeyForEpoch(epoch uint32) error {
 	}
 	return nil
 }
+
+// Qx - Asset Transfers
+
+func (s *PebbleStore) PutQxAssetTransfersPerTick(ctx context.Context, identity string, assetId string, tickNumber uint32, txs *protobuff.QxAssetTransfersPerTickDB) error {
+	key := identityQxAssetTransfersKey(identity, assetId, tickNumber)
+
+	serialized, err := proto.Marshal(txs)
+	if err != nil {
+		return errors.Wrap(err, "serializing asset transfer proto")
+	}
+
+	err = s.db.Set(key, serialized, pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting asset transfer tx")
+	}
+
+	return nil
+}
