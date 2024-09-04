@@ -458,7 +458,7 @@ func (s *PebbleStore) GetTransferTransactionsFromEnd(ctx context.Context, identi
 	if endTick == 0 {
 		lastProcessedTick, err := s.GetLastProcessedTick(ctx)
 		if err != nil {
-			return nil, 0, 0, errors.Wrap(err, "creating last processed tick")
+			return nil, 0, 0, errors.Wrap(err, "fetching last processed tick")
 		}
 		endTick = uint64(lastProcessedTick.TickNumber)
 	}
