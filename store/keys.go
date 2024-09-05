@@ -20,6 +20,9 @@ const (
 	StoreDigest                  = 0x12
 	EmptyTicksPerEpoch           = 0x13
 	QxIdentityAssetTransfers     = 0x14
+
+	// Database Migration
+	DbMigrationVersion = 0xFF
 )
 
 func emptyTicksPerEpochKey(epoch uint32) []byte {

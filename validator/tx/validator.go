@@ -3,6 +3,7 @@ package tx
 import (
 	"context"
 	"encoding/hex"
+	"log"
 
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
@@ -113,7 +114,7 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tra
 		return errors.Wrap(err, "storing transfer transactions")
 	}
 
-	err = storeQxAssetTransfers(ctx, store, tickNumber, transactions)
+	err = StoreQxAssetTransfers(ctx, store, tickNumber, transactions)
 	if err != nil {
 		return errors.Wrap(err, "storing asset transfer transactions")
 	}
@@ -209,7 +210,7 @@ type QxAssetTransfer struct {
 	TickNumber  uint32
 }
 
-func storeQxAssetTransfers(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
+func StoreQxAssetTransfers(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
 	assetTransferTransactions, err := removeNonQxAssetTransferTransactionsAndConvert(transactions)
 	if err != nil {
 		return errors.Wrap(err, "removing non asset transfer transactions")
@@ -252,12 +253,14 @@ func removeNonQxAssetTransferTransactionsAndConvert(transactions []types.Transac
 		var transferAssetOwnershipAndPossessionInput qx.QxTransferAssetOwnershipAndPossessionInput
 		err := transferAssetOwnershipAndPossessionInput.UnmarshalBinary(tx.Input)
 		if err != nil {
-			return nil, errors.Wrap(err, "unmarshal tx input")
+			log.Printf("failed to unmarshal transaction from input: %v", err)
+			continue
 		}
 
 		transferPayload, err := transferAssetOwnershipAndPossessionInput.GetAssetTransfer()
 		if err != nil {
-			return nil, errors.Wrap(err, "get asset transfer")
+			log.Printf("failed to get asset transfer from input: %v", err)
+			continue
 		}
 
 		assetTransferTransactions = append(assetTransferTransactions, &QxTransactionWithTransferAssetPayload{

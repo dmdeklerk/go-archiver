@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"encoding/binary"
+	"log"
 	"strconv"
+	"time"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/pkg/errors"
@@ -23,6 +25,133 @@ type PebbleStore struct {
 
 func NewPebbleStore(db *pebble.DB, logger *zap.Logger) *PebbleStore {
 	return &PebbleStore{db: db, logger: logger}
+}
+
+func (s *PebbleStore) GetMigrationVersion() (uint32, error) {
+	var migrationVersionKey = []byte{DbMigrationVersion}
+	value, closer, err := s.db.Get(migrationVersionKey)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			return 0, ErrNotFound
+		}
+		return 0, errors.Wrap(err, "retrieving migration version")
+	}
+	defer closer.Close()
+
+	if len(value) < 4 {
+		return 0, errors.New("migration version data is corrupted")
+	}
+	version := binary.LittleEndian.Uint32(value)
+	return version, nil
+}
+
+func (s *PebbleStore) SetMigrationVersion(version uint32) error {
+	var buf [4]byte
+	binary.LittleEndian.PutUint32(buf[:], version)
+	var migrationVersionKey = []byte{DbMigrationVersion}
+	err := s.db.Set(migrationVersionKey, buf[:], pebble.Sync)
+	if err != nil {
+		return errors.Wrap(err, "setting migration version")
+	}
+	return nil
+}
+
+// CountKeysInRange counts all the keys in the Pebble database.
+func (s *PebbleStore) CountKeysInRange(prefixID byte) (int, error) {
+	startKey := []byte{prefixID}
+	endKey := make([]byte, len(startKey))
+	copy(endKey, startKey)
+	endKey[len(endKey)-1]++
+
+	log.Printf("start counting keys in range...")
+	count := 0
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		UpperBound: endKey,
+		LowerBound: startKey,
+	}) // nil IterOptions means iterate over the entire database
+	if err != nil {
+		return 0, errors.Wrap(err, "creating iterator")
+	}
+	defer iter.Close()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	go func() {
+		for range ticker.C {
+			log.Printf("still counting [%d]...", count)
+		}
+	}()
+
+	for iter.First(); iter.Valid(); iter.Next() {
+		count++
+	}
+
+	ticker.Stop()
+
+	if err := iter.Error(); err != nil {
+		return 0, err
+	}
+
+	log.Printf("done counting keys in range, there are %d keys", count)
+	return count, nil
+}
+
+// ClearKeysByPrefix deletes all keys starting with the specified prefix identifier.
+func (s *PebbleStore) ClearKeysByPrefix(prefixID byte) error {
+	startKey := []byte{prefixID}
+	endKey := make([]byte, len(startKey))
+	copy(endKey, startKey)
+	endKey[len(endKey)-1]++
+
+	keyCountBefore, err := s.CountKeysInRange(prefixID)
+	if err != nil {
+		return errors.Wrap(err, "cant count keys")
+	}
+
+	log.Printf("start key range deletion...")
+
+	if err := s.db.DeleteRange(startKey, endKey, pebble.Sync); err != nil {
+		return errors.Wrap(err, "deleting key range in batch")
+	}
+
+	log.Printf("done deleting key range, starting key analysis...")
+
+	keyCountAfter, err := s.CountKeysInRange(prefixID)
+	if err != nil {
+		return errors.Wrap(err, "cant count keys")
+	}
+
+	log.Printf("a total of %d keys have been deleted", keyCountBefore-keyCountAfter)
+
+	return nil
+}
+
+func (s *PebbleStore) FindFirstTickNumber() (uint32, error) {
+	startKey := tickDataKey(0) // Generates the lowest possible key
+	iter, err := s.db.NewIter(&pebble.IterOptions{
+		LowerBound: startKey,
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "cant create iterator")
+	}
+	defer iter.Close()
+
+	// Advance the iterator to the first key in the specified range
+	if iter.First() {
+		if len(iter.Key()) > 8 { // The key should be at least 1 byte prefix + 8 bytes uint64
+			// Parse the tick number from the key
+			// Key structure is [prefix][8-byte tickNumber]
+			tickNumber := binary.BigEndian.Uint64(iter.Key()[1:])
+			return uint32(tickNumber), nil // Convert uint64 to uint32, assuming the value fits into uint32
+		}
+	}
+
+	if err := iter.Error(); err != nil {
+		return 0, errors.Wrap(err, "iterator exited with error")
+	}
+
+	return 0, errors.New("no tick data keys found")
 }
 
 func (s *PebbleStore) GetTickData(ctx context.Context, tickNumber uint32) (*protobuff.TickData, error) {

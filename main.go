@@ -2,19 +2,21 @@ package main
 
 import (
 	"fmt"
-	"github.com/ardanlabs/conf"
-	"github.com/cockroachdb/pebble"
-	"github.com/pkg/errors"
-	"github.com/qubic/go-archiver/processor"
-	"github.com/qubic/go-archiver/rpc"
-	"github.com/qubic/go-archiver/store"
-	"github.com/qubic/go-archiver/validator/tick"
-	qubic "github.com/qubic/go-node-connector"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/ardanlabs/conf"
+	"github.com/cockroachdb/pebble"
+	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/migrations"
+	"github.com/qubic/go-archiver/processor"
+	"github.com/qubic/go-archiver/rpc"
+	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/validator/tick"
+	qubic "github.com/qubic/go-node-connector"
 )
 
 const prefix = "QUBIC_ARCHIVER"
@@ -87,6 +89,10 @@ func run() error {
 	defer db.Close()
 
 	ps := store.NewPebbleStore(db, nil)
+
+	if err := migrations.PerformMigrations(ps); err != nil {
+		return errors.Wrap(err, "performing migrations")
+	}
 
 	if cfg.Store.ResetEmptyTickKeys {
 		fmt.Printf("Resetting empty ticks for all epochs...\n")
