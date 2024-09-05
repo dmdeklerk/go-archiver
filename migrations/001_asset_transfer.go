@@ -27,7 +27,7 @@ func AssetTransferMigration(ps *store.PebbleStore) error {
 
 	firstTick, err := ps.FindFirstTickNumber()
 	if err != nil {
-		return errors.Wrap(err, "getting last processed tick")
+		return errors.Wrap(err, "find first tick number")
 	}
 	log.Printf("[migration/001_asset_transfer] first tick is %d", firstTick)
 
@@ -46,7 +46,6 @@ func AssetTransferMigration(ps *store.PebbleStore) error {
 		if errors.Is(err, store.ErrNotFound) {
 			continue
 		} else if err != nil {
-			// Log and handle other errors, possibly continue or break based on your error policy
 			log.Printf("error retrieving tick data for tick number: %d: %v", tickNumber, err)
 			continue
 		}
@@ -70,7 +69,6 @@ func AssetTransferMigration(ps *store.PebbleStore) error {
 	return nil
 }
 
-// processTickData handles the processing of each tick's data
 func processTickData(ctx context.Context, ps *store.PebbleStore, tickNumber uint32, tickTransactions []*protobuff.Transaction) error {
 	transactions, err := tx.ProtoToQubic(tickTransactions)
 	if err != nil {
