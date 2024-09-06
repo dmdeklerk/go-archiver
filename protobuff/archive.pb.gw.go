@@ -433,11 +433,11 @@ func local_request_ArchiveService_GetIdentityTransfersInTickRangeV2_0(ctx contex
 }
 
 var (
-	filter_ArchiveService_GetIdentityTransferDataV2_0 = &utilities.DoubleArray{Encoding: map[string]int{"identity": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ArchiveService_GetIdentityAssetTransactionsV2_0 = &utilities.DoubleArray{Encoding: map[string]int{"identity": 0, "asset_issuer": 1, "asset_name": 2}, Base: []int{1, 1, 2, 3, 0, 0, 0}, Check: []int{0, 1, 1, 1, 2, 3, 4}}
 )
 
-func request_ArchiveService_GetIdentityTransferDataV2_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetIdentityTransferDataRequestV2
+func request_ArchiveService_GetIdentityAssetTransactionsV2_0(ctx context.Context, marshaler runtime.Marshaler, client ArchiveServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetIdentityAssetTransactionsRequestV2
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -457,20 +457,40 @@ func request_ArchiveService_GetIdentityTransferDataV2_0(ctx context.Context, mar
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "identity", err)
 	}
 
+	val, ok = pathParams["asset_issuer"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "asset_issuer")
+	}
+
+	protoReq.AssetIssuer, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "asset_issuer", err)
+	}
+
+	val, ok = pathParams["asset_name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "asset_name")
+	}
+
+	protoReq.AssetName, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "asset_name", err)
+	}
+
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ArchiveService_GetIdentityTransferDataV2_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ArchiveService_GetIdentityAssetTransactionsV2_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GetIdentityTransferDataV2(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.GetIdentityAssetTransactionsV2(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_ArchiveService_GetIdentityTransferDataV2_0(ctx context.Context, marshaler runtime.Marshaler, server ArchiveServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq GetIdentityTransferDataRequestV2
+func local_request_ArchiveService_GetIdentityAssetTransactionsV2_0(ctx context.Context, marshaler runtime.Marshaler, server ArchiveServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetIdentityAssetTransactionsRequestV2
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -490,14 +510,34 @@ func local_request_ArchiveService_GetIdentityTransferDataV2_0(ctx context.Contex
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "identity", err)
 	}
 
+	val, ok = pathParams["asset_issuer"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "asset_issuer")
+	}
+
+	protoReq.AssetIssuer, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "asset_issuer", err)
+	}
+
+	val, ok = pathParams["asset_name"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "asset_name")
+	}
+
+	protoReq.AssetName, err = runtime.String(val)
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "asset_name", err)
+	}
+
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ArchiveService_GetIdentityTransferDataV2_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ArchiveService_GetIdentityAssetTransactionsV2_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.GetIdentityTransferDataV2(ctx, &protoReq)
+	msg, err := server.GetIdentityAssetTransactionsV2(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -1327,7 +1367,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_ArchiveService_GetIdentityTransferDataV2_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ArchiveService_GetIdentityAssetTransactionsV2_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -1335,12 +1375,12 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetIdentityTransferDataV2", runtime.WithHTTPPathPattern("/v2/identities/{identity}/transfer-data"))
+		annotatedContext, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetIdentityAssetTransactionsV2", runtime.WithHTTPPathPattern("/v2/identities/{identity}/{asset_issuer}/{asset_name}/asset-transactions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ArchiveService_GetIdentityTransferDataV2_0(annotatedContext, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ArchiveService_GetIdentityAssetTransactionsV2_0(annotatedContext, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
@@ -1348,7 +1388,7 @@ func RegisterArchiveServiceHandlerServer(ctx context.Context, mux *runtime.Serve
 			return
 		}
 
-		forward_ArchiveService_GetIdentityTransferDataV2_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ArchiveService_GetIdentityAssetTransactionsV2_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1897,25 +1937,25 @@ func RegisterArchiveServiceHandlerClient(ctx context.Context, mux *runtime.Serve
 
 	})
 
-	mux.Handle("GET", pattern_ArchiveService_GetIdentityTransferDataV2_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ArchiveService_GetIdentityAssetTransactionsV2_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		var err error
 		var annotatedContext context.Context
-		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetIdentityTransferDataV2", runtime.WithHTTPPathPattern("/v2/identities/{identity}/transfer-data"))
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/qubic.archiver.archive.pb.ArchiveService/GetIdentityAssetTransactionsV2", runtime.WithHTTPPathPattern("/v2/identities/{identity}/{asset_issuer}/{asset_name}/asset-transactions"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ArchiveService_GetIdentityTransferDataV2_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ArchiveService_GetIdentityAssetTransactionsV2_0(annotatedContext, inboundMarshaler, client, req, pathParams)
 		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
 		if err != nil {
 			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ArchiveService_GetIdentityTransferDataV2_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ArchiveService_GetIdentityAssetTransactionsV2_0(annotatedContext, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -2245,7 +2285,7 @@ var (
 
 	pattern_ArchiveService_GetIdentityTransfersInTickRangeV2_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v2", "identities", "identity", "transfers"}, ""))
 
-	pattern_ArchiveService_GetIdentityTransferDataV2_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v2", "identities", "identity", "transfer-data"}, ""))
+	pattern_ArchiveService_GetIdentityAssetTransactionsV2_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 1, 0, 4, 1, 5, 3, 1, 0, 4, 1, 5, 4, 2, 5}, []string{"v2", "identities", "identity", "asset_issuer", "asset_name", "asset-transactions"}, ""))
 
 	pattern_ArchiveService_GetTickData_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"v1", "ticks", "tick_number", "tick-data"}, ""))
 
@@ -2291,7 +2331,7 @@ var (
 
 	forward_ArchiveService_GetIdentityTransfersInTickRangeV2_0 = runtime.ForwardResponseMessage
 
-	forward_ArchiveService_GetIdentityTransferDataV2_0 = runtime.ForwardResponseMessage
+	forward_ArchiveService_GetIdentityAssetTransactionsV2_0 = runtime.ForwardResponseMessage
 
 	forward_ArchiveService_GetTickData_0 = runtime.ForwardResponseMessage
 

@@ -6,8 +6,8 @@ import (
 	"log"
 
 	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/asset_transactions"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-archiver/qx"
 	"github.com/qubic/go-archiver/store"
 	"github.com/qubic/go-archiver/utils"
 	"github.com/qubic/go-node-connector/types"
@@ -114,7 +114,7 @@ func Store(ctx context.Context, store *store.PebbleStore, tickNumber uint32, tra
 		return errors.Wrap(err, "storing transfer transactions")
 	}
 
-	err = StoreQxAssetTransfers(ctx, store, tickNumber, transactions)
+	err = StoreAssetTransactions(ctx, store, tickNumber, transactions)
 	if err != nil {
 		return errors.Wrap(err, "storing asset transfer transactions")
 	}
@@ -194,153 +194,91 @@ func createTransferTransactionsIdentityMap(ctx context.Context, txs []*protobuff
 	return txsPerIdentity, nil
 }
 
-// Qx Asset Transfers
-type QxTransactionWithTransferAssetPayload struct {
-	Transaction     types.Transaction
-	TransferPayload qx.QxTransferAssetPayload
-}
-
-type QxAssetTransfer struct {
-	AssetIssuer string
-	AssetName   string
-	SourceId    string
-	DestId      string
-	Amount      int64
-	TxId        string
-	TickNumber  uint32
-}
-
-func StoreQxAssetTransfers(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
-	assetTransferTransactions, err := removeNonQxAssetTransferTransactionsAndConvert(transactions)
+func StoreAssetTransactions(ctx context.Context, store *store.PebbleStore, tickNumber uint32, transactions types.Transactions) error {
+	transactionWithAssetPayloads, err := removeNonTransactionWithAssetPayloadsAndConvert(transactions)
 	if err != nil {
-		return errors.Wrap(err, "removing non asset transfer transactions")
+		return errors.Wrap(err, "removing non transactions with asset payload")
 	}
-	assetTransfersPerIdentity, err := createQxAssetTransfersIdentityMap(assetTransferTransactions, tickNumber)
+	identityMap, err := createIdentityMap(transactionWithAssetPayloads)
 	if err != nil {
-		return errors.Wrap(err, "grouping asset transfers per identity")
+		return errors.Wrap(err, "grouping transactions with asset payload per identity and asset id")
 	}
 
-	for id, transfersOuterLoop := range assetTransfersPerIdentity {
-
-		assetTransfersPerIdentityPerAsset, err := createQxAssetTransferAssetIdMap(transfersOuterLoop)
-		if err != nil {
-			return errors.Wrap(err, "grouping asset transfers per asset id")
-		}
-
-		for assetId, transfers := range assetTransfersPerIdentityPerAsset {
-
-			err = store.PutQxAssetTransfersPerTick(ctx, id, assetId, tickNumber, &protobuff.QxAssetTransfersPerTickDB{
-				TickNumber: tickNumber,
-				Transfers:  transfers,
-			})
-			if err != nil {
-				return errors.Wrap(err, "storing asset transfers")
-			}
-		}
+	err = store.PutAssetTransactionsPerTickBatch(identityMap, tickNumber)
+	if err != nil {
+		return errors.Wrap(err, "storing asset transactions")
 	}
 
 	return nil
 }
 
-// Removes non Qx Asset Transfer transactions and converts to {QxTransactionWithTransferAssetPayload}
-func removeNonQxAssetTransferTransactionsAndConvert(transactions []types.Transaction) ([]*QxTransactionWithTransferAssetPayload, error) {
-	assetTransferTransactions := make([]*QxTransactionWithTransferAssetPayload, 0)
+// Removes unsupported transactions, parses the payload based on the input type, returns a struct containing
+// the transaction and the parsed payload
+func removeNonTransactionWithAssetPayloadsAndConvert(transactions []types.Transaction) ([]*asset_transactions.TransactionWithAssetPayload, error) {
+	transactionWithAssetPayloads := make([]*asset_transactions.TransactionWithAssetPayload, 0)
 	for _, tx := range transactions {
-		if tx.InputType != 2 {
-			continue
-		}
 
-		var transferAssetOwnershipAndPossessionInput qx.QxTransferAssetOwnershipAndPossessionInput
-		err := transferAssetOwnershipAndPossessionInput.UnmarshalBinary(tx.Input)
+		transactionWithAssetPayload, err := asset_transactions.ParseAssetTransaction(tx)
 		if err != nil {
-			log.Printf("failed to unmarshal transaction from input: %v", err)
-			continue
+			if err == asset_transactions.ErrNotValidTransaction {
+				continue
+			}
+			return nil, errors.Wrap(err, "parse asset transaction")
 		}
 
-		transferPayload, err := transferAssetOwnershipAndPossessionInput.GetAssetTransfer()
-		if err != nil {
-			log.Printf("failed to get asset transfer from input: %v", err)
-			continue
+		if transactionWithAssetPayload != nil {
+			transactionWithAssetPayloads = append(transactionWithAssetPayloads, transactionWithAssetPayload)
 		}
-
-		assetTransferTransactions = append(assetTransferTransactions, &QxTransactionWithTransferAssetPayload{
-			Transaction:     tx,
-			TransferPayload: *transferPayload,
-		})
 	}
 
-	return assetTransferTransactions, nil
+	return transactionWithAssetPayloads, nil
 }
 
-// Groups {QxTransactionWithTransferAssetPayload} per identity
-func createQxAssetTransfersIdentityMap(txs []*QxTransactionWithTransferAssetPayload, tickNumber uint32) (map[string][]*QxAssetTransfer, error) {
-	assetTransferTxsPerIdentity := make(map[string][]*QxAssetTransfer)
+// We want to group transactions per identity and asset id
+// The map looks like this
+//
+//	{
+//	  "identity-1": {
+//				"asset-1" : ["transaction id 1", "transaction id 2"],
+//				"asset-2" : ["transaction id 2", "transaction id 3"],
+//	  }
+//	  "identity-2": {
+//				"asset-1" : ["transaction id 1", "transaction id 2"],
+//				"asset-2" : ["transaction id 2", "transaction id 3"],
+//	  }
+//	}
+//
+// Example: if we pass a single Qubic transfer transaction the result will be a map with two entries, one for the
+// sourceId and one for the destId. Both entries will have a copy of the same transaction
+func createIdentityMap(txs []*asset_transactions.TransactionWithAssetPayload) (map[string]map[string][]string, error) {
+
+	// Define the map structure: map[identity]map[assetId][]transactionId
+	identityMap := make(map[string]map[string][]string)
+
 	for _, tx := range txs {
 
-		digest, err := tx.Transaction.Digest()
+		transactionData, err := asset_transactions.FindTransactionIdParticipantsAndCurrency(*tx)
 		if err != nil {
-			return nil, errors.Wrap(err, "getting tx digest")
-		}
-		var txID types.Identity
-		txID, err = txID.FromPubKey(digest, true)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting tx id")
-		}
-
-		var sourceIdentity types.Identity
-		sourceIdentity, err = sourceIdentity.FromPubKey(tx.Transaction.SourcePublicKey, false)
-		if err != nil {
-			return nil, errors.Wrap(err, "getting source id")
+			if err == asset_transactions.ErrNotValidTransaction {
+				log.Printf("no transaction id, particpants and currency, skipping %s", tx.Transaction.TxId)
+				continue
+			}
+			return nil, errors.Wrap(err, "finding transaction id, particpants and currency")
 		}
 
-		var destId = tx.TransferPayload.DestId.String()
-		var sourceId = sourceIdentity.String()
+		// for each participant
+		for _, identity := range transactionData.Identities {
+			// prepare the identity entry
+			_, ok := identityMap[identity]
+			if !ok {
+				identityMap[identity] = make(map[string][]string)
+			}
 
-		_, ok := assetTransferTxsPerIdentity[destId]
-		if !ok {
-			assetTransferTxsPerIdentity[destId] = make([]*QxAssetTransfer, 0)
+			// prepare the asset id entry
+			assetId := transactionData.Currency.AssetIssuer + transactionData.Currency.AssetName
+			identityMap[identity][assetId] = append(identityMap[identity][assetId], tx.Transaction.TxId)
 		}
-
-		_, ok = assetTransferTxsPerIdentity[sourceId]
-		if !ok {
-			assetTransferTxsPerIdentity[sourceId] = make([]*QxAssetTransfer, 0)
-		}
-
-		assetTransfer := &QxAssetTransfer{
-			AssetIssuer: tx.TransferPayload.Issuer.String(),
-			AssetName:   tx.TransferPayload.AssetName,
-			SourceId:    sourceId,
-			DestId:      destId,
-			Amount:      tx.TransferPayload.Amount,
-			TxId:        txID.String(),
-			TickNumber:  tickNumber,
-		}
-
-		assetTransferTxsPerIdentity[destId] = append(assetTransferTxsPerIdentity[destId], assetTransfer)
-		assetTransferTxsPerIdentity[sourceId] = append(assetTransferTxsPerIdentity[sourceId], assetTransfer)
 	}
 
-	return assetTransferTxsPerIdentity, nil
-}
-
-// Groups {QxAssetTransfer} per AssetId (asset id is assetIssuer + assetName) and converts the result into {QxAssetTransferDB}
-func createQxAssetTransferAssetIdMap(transfers []*QxAssetTransfer) (map[string][]*protobuff.QxAssetTransferDB, error) {
-	assetTransferPerAssetId := make(map[string][]*protobuff.QxAssetTransferDB)
-	for _, t := range transfers {
-		assetId := t.AssetIssuer + t.AssetName
-
-		_, ok := assetTransferPerAssetId[assetId]
-		if !ok {
-			assetTransferPerAssetId[assetId] = make([]*protobuff.QxAssetTransferDB, 0)
-		}
-
-		assetTransferPerAssetId[assetId] = append(assetTransferPerAssetId[assetId], &protobuff.QxAssetTransferDB{
-			SourceId: t.SourceId,
-			DestId:   t.DestId,
-			Amount:   uint64(t.Amount),
-			TxId:     t.TxId,
-		})
-
-	}
-	return assetTransferPerAssetId, nil
+	return identityMap, nil
 }

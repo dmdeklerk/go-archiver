@@ -19,7 +19,7 @@ const (
 	TransactionStatus            = 0x11
 	StoreDigest                  = 0x12
 	EmptyTicksPerEpoch           = 0x13
-	QxIdentityAssetTransfers     = 0x14
+	IdentityAssetTransactions    = 0x14
 
 	// Database Migration
 	DbMigrationVersion = 0xFF
@@ -130,10 +130,17 @@ func tickTxStatusKey(tickNumber uint64) []byte {
 	return key
 }
 
-func identityQxAssetTransfersKey(identity string, assetId string, tickNumber uint32) []byte {
-	key := []byte{QxIdentityAssetTransfers}
+func identityAssetTransactionKey(identity string, assetId string) []byte {
+	key := []byte{IdentityAssetTransactions}
 	key = append(key, []byte(identity)...)
 	key = append(key, []byte(assetId)...)
+
+	return key
+}
+
+func identityAssetTransactionKeyWithTickNumber(baseKey []byte, tickNumber uint32) []byte {
+	key := make([]byte, len(baseKey))
+	copy(key, baseKey)
 	key = binary.BigEndian.AppendUint64(key, uint64(tickNumber))
 
 	return key

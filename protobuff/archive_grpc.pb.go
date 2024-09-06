@@ -27,7 +27,7 @@ const (
 	ArchiveService_GetTransactionV2_FullMethodName                  = "/qubic.archiver.archive.pb.ArchiveService/GetTransactionV2"
 	ArchiveService_GetSendManyTransactionV2_FullMethodName          = "/qubic.archiver.archive.pb.ArchiveService/GetSendManyTransactionV2"
 	ArchiveService_GetIdentityTransfersInTickRangeV2_FullMethodName = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityTransfersInTickRangeV2"
-	ArchiveService_GetIdentityTransferDataV2_FullMethodName         = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityTransferDataV2"
+	ArchiveService_GetIdentityAssetTransactionsV2_FullMethodName    = "/qubic.archiver.archive.pb.ArchiveService/GetIdentityAssetTransactionsV2"
 	ArchiveService_GetTickData_FullMethodName                       = "/qubic.archiver.archive.pb.ArchiveService/GetTickData"
 	ArchiveService_GetQuorumTickData_FullMethodName                 = "/qubic.archiver.archive.pb.ArchiveService/GetQuorumTickData"
 	ArchiveService_GetTickTransactions_FullMethodName               = "/qubic.archiver.archive.pb.ArchiveService/GetTickTransactions"
@@ -62,7 +62,7 @@ type ArchiveServiceClient interface {
 	GetSendManyTransactionV2(ctx context.Context, in *GetSendManyTransactionRequestV2, opts ...grpc.CallOption) (*GetSendManyTransactionResponseV2, error)
 	// Identity
 	GetIdentityTransfersInTickRangeV2(ctx context.Context, in *GetTransferTransactionsPerTickRequestV2, opts ...grpc.CallOption) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	GetIdentityTransferDataV2(ctx context.Context, in *GetIdentityTransferDataRequestV2, opts ...grpc.CallOption) (*GetIdentityTransferDataResponseV2, error)
+	GetIdentityAssetTransactionsV2(ctx context.Context, in *GetIdentityAssetTransactionsRequestV2, opts ...grpc.CallOption) (*GetIdentityAssetTransactionsResponseV2, error)
 	// V1 Endpoints
 	GetTickData(ctx context.Context, in *GetTickDataRequest, opts ...grpc.CallOption) (*GetTickDataResponse, error)
 	GetQuorumTickData(ctx context.Context, in *GetQuorumTickDataRequest, opts ...grpc.CallOption) (*GetQuorumTickDataResponse, error)
@@ -151,9 +151,9 @@ func (c *archiveServiceClient) GetIdentityTransfersInTickRangeV2(ctx context.Con
 	return out, nil
 }
 
-func (c *archiveServiceClient) GetIdentityTransferDataV2(ctx context.Context, in *GetIdentityTransferDataRequestV2, opts ...grpc.CallOption) (*GetIdentityTransferDataResponseV2, error) {
-	out := new(GetIdentityTransferDataResponseV2)
-	err := c.cc.Invoke(ctx, ArchiveService_GetIdentityTransferDataV2_FullMethodName, in, out, opts...)
+func (c *archiveServiceClient) GetIdentityAssetTransactionsV2(ctx context.Context, in *GetIdentityAssetTransactionsRequestV2, opts ...grpc.CallOption) (*GetIdentityAssetTransactionsResponseV2, error) {
+	out := new(GetIdentityAssetTransactionsResponseV2)
+	err := c.cc.Invoke(ctx, ArchiveService_GetIdentityAssetTransactionsV2_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ type ArchiveServiceServer interface {
 	GetSendManyTransactionV2(context.Context, *GetSendManyTransactionRequestV2) (*GetSendManyTransactionResponseV2, error)
 	// Identity
 	GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error)
-	GetIdentityTransferDataV2(context.Context, *GetIdentityTransferDataRequestV2) (*GetIdentityTransferDataResponseV2, error)
+	GetIdentityAssetTransactionsV2(context.Context, *GetIdentityAssetTransactionsRequestV2) (*GetIdentityAssetTransactionsResponseV2, error)
 	// V1 Endpoints
 	GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error)
 	GetQuorumTickData(context.Context, *GetQuorumTickDataRequest) (*GetQuorumTickDataResponse, error)
@@ -348,8 +348,8 @@ func (UnimplementedArchiveServiceServer) GetSendManyTransactionV2(context.Contex
 func (UnimplementedArchiveServiceServer) GetIdentityTransfersInTickRangeV2(context.Context, *GetTransferTransactionsPerTickRequestV2) (*GetIdentityTransfersInTickRangeResponseV2, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityTransfersInTickRangeV2 not implemented")
 }
-func (UnimplementedArchiveServiceServer) GetIdentityTransferDataV2(context.Context, *GetIdentityTransferDataRequestV2) (*GetIdentityTransferDataResponseV2, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityTransferDataV2 not implemented")
+func (UnimplementedArchiveServiceServer) GetIdentityAssetTransactionsV2(context.Context, *GetIdentityAssetTransactionsRequestV2) (*GetIdentityAssetTransactionsResponseV2, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetIdentityAssetTransactionsV2 not implemented")
 }
 func (UnimplementedArchiveServiceServer) GetTickData(context.Context, *GetTickDataRequest) (*GetTickDataResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTickData not implemented")
@@ -532,20 +532,20 @@ func _ArchiveService_GetIdentityTransfersInTickRangeV2_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ArchiveService_GetIdentityTransferDataV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetIdentityTransferDataRequestV2)
+func _ArchiveService_GetIdentityAssetTransactionsV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetIdentityAssetTransactionsRequestV2)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ArchiveServiceServer).GetIdentityTransferDataV2(ctx, in)
+		return srv.(ArchiveServiceServer).GetIdentityAssetTransactionsV2(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ArchiveService_GetIdentityTransferDataV2_FullMethodName,
+		FullMethod: ArchiveService_GetIdentityAssetTransactionsV2_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArchiveServiceServer).GetIdentityTransferDataV2(ctx, req.(*GetIdentityTransferDataRequestV2))
+		return srv.(ArchiveServiceServer).GetIdentityAssetTransactionsV2(ctx, req.(*GetIdentityAssetTransactionsRequestV2))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -838,8 +838,8 @@ var ArchiveService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ArchiveService_GetIdentityTransfersInTickRangeV2_Handler,
 		},
 		{
-			MethodName: "GetIdentityTransferDataV2",
-			Handler:    _ArchiveService_GetIdentityTransferDataV2_Handler,
+			MethodName: "GetIdentityAssetTransactionsV2",
+			Handler:    _ArchiveService_GetIdentityAssetTransactionsV2_Handler,
 		},
 		{
 			MethodName: "GetTickData",

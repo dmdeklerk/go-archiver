@@ -8,6 +8,58 @@ import (
 	"github.com/qubic/go-node-connector/types"
 )
 
+/*
+
+struct AddToAskOrder_input
+{
+    uint8_t issuer[32];
+    uint64_t assetName;
+    long long price;
+    long long numberOfShares;
+};
+
+struct TransferAssetOwnershipAndPossession_input
+{
+    uint8_t issuer[32];
+    uint8_t newOwnerAndPossessor[32];
+    unsigned long long assetName;
+    long long numberOfUnits;
+};
+
+struct AddToBidOrder_input
+{
+    uint8_t issuer[32];
+    uint64_t assetName;
+    long long price;
+    long long numberOfShares;
+};
+
+struct RemoveFromAskOrder_input
+{
+    uint8_t issuer[32];
+    uint64_t assetName;
+    long long price;
+    long long numberOfShares;
+};
+
+struct RemoveFromBidOrder_input
+{
+    uint8_t issuer[32];
+    uint64_t assetName;
+    long long price;
+    long long numberOfShares;
+};
+
+struct IssueAsset_input
+{
+    uint64_t name;
+    int64_t numberOfUnits;
+    uint64_t unitOfMeasurement;
+    char numberOfDecimalPlaces;
+};
+
+*/
+
 type QxTransferAssetOwnershipAndPossessionInput struct {
 	Issuer               [32]byte
 	NewOwnerAndPossessor [32]byte

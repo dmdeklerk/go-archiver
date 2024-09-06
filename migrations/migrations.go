@@ -10,10 +10,16 @@ import (
 type MigrationFunc func(ps *store.PebbleStore) error
 
 var migrations = []MigrationFunc{
-	AssetTransferMigration,
+	AssetTransactionMigration,
 }
 
 func PerformMigrations(ps *store.PebbleStore) error {
+	// We always run the deletion task to delete the quorum data as we dont use that.
+	err := DeleteUnusedDataMigration(ps)
+	if err != nil {
+		return errors.Wrap(err, "deleting unused data")
+	}
+
 	currentVersion, err := ps.GetMigrationVersion()
 	if err != nil {
 		// Handle the case where the migration version cannot be fetched
@@ -24,7 +30,7 @@ func PerformMigrations(ps *store.PebbleStore) error {
 		currentVersion = 0
 	}
 
-	// DEBUG!! REMOVE THIS !!
+	// // DEBUG!! REMOVE THIS !!
 	currentVersion = 0
 	log.Printf("DEBUG!! FORCE SET MIGRATION VERSION TO 0")
 
