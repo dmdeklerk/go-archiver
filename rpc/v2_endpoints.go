@@ -433,7 +433,7 @@ func (s *Server) GetIdentityAssetTransactionsV2(ctx context.Context, req *protob
 				})
 			} else if assetTransaction.SendManyTransaction != nil {
 				transactions = append(transactions, &protobuff.AssetTransaction{
-					TransactionType: protobuff.AssetTransactionType_QX_ASSET_TRANSFER,
+					TransactionType: protobuff.AssetTransactionType_QUTIL_SEND_MANY,
 					Transaction:     identityAssetTransaction.Transaction,
 					Timestamp:       identityAssetTransaction.Timestamp,
 					MoneyFlew:       identityAssetTransaction.MoneyFlew,

@@ -30,9 +30,9 @@ func PerformMigrations(ps *store.PebbleStore) error {
 		currentVersion = 0
 	}
 
-	// // DEBUG!! REMOVE THIS !!
-	currentVersion = 0
-	log.Printf("DEBUG!! FORCE SET MIGRATION VERSION TO 0")
+	// // // DEBUG!! REMOVE THIS !!
+	// currentVersion = 0
+	// log.Printf("DEBUG!! FORCE SET MIGRATION VERSION TO 0")
 
 	for idx, migrate := range migrations {
 		migrationIndex := uint32(idx + 1) // Migration versions start at 1

@@ -82,11 +82,6 @@ func ParseAssetTransaction(tx types.Transaction) (*TransactionWithAssetPayload, 
 		// send many
 		case 1:
 			{
-				if transaction.DestId != types.QutilAddress {
-					log.Printf("sendmany transaction not send to qutil sc")
-					return nil, ErrNotValidTransaction
-				}
-
 				var sendManyPayload types.SendManyTransferPayload
 				err = sendManyPayload.UnmarshallBinary(tx.Input)
 				if err != nil {
