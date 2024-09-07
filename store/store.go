@@ -911,14 +911,14 @@ func extractTickNumberFromIdentityAssetTransactionKey(key []byte) (uint32, error
 	return uint32(tickNumber), nil
 }
 
-func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, includeFailedTransactions bool, identity, assetId string, endTick uint32, txnIndexStart, maxTransactions int) ([]*IdetityAssetTransactions, uint32, uint32, error) {
+func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, includeFailedTransactions bool, identity, assetId string, endTick uint32, txnIndexStart, maxTransactions int) ([]*IdetityAssetTransactions, uint32, uint32, uint32, error) {
+	lastProcessedTick, err := s.GetLastProcessedTick(ctx)
+	if err != nil {
+		return nil, 0, 0, 0, errors.Wrap(err, "fetching last processed tick")
+	}
 
 	// The user can omit the {endTick} parameter in which case we start at the last processed tick
 	if endTick == 0 {
-		lastProcessedTick, err := s.GetLastProcessedTick(ctx)
-		if err != nil {
-			return nil, 0, 0, errors.Wrap(err, "fetching last processed tick")
-		}
 		endTick = lastProcessedTick.TickNumber
 	}
 
@@ -935,7 +935,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 		UpperBound: endKey,
 	})
 	if err != nil {
-		return nil, 0, 0, errors.Wrap(err, "creating iterator")
+		return nil, 0, 0, 0, errors.Wrap(err, "creating iterator")
 	}
 	defer iter.Close()
 
@@ -951,18 +951,18 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 		key := iter.Key()
 		tickNumber, err := extractTickNumberFromIdentityAssetTransactionKey(key)
 		if err != nil {
-			return nil, 0, 0, errors.Wrap(err, "extracting tickNumber from key")
+			return nil, 0, 0, 0, errors.Wrap(err, "extracting tickNumber from key")
 		}
 
 		value, err := iter.ValueAndErr()
 		if err != nil {
-			return nil, 0, 0, errors.Wrap(err, "getting value from iterator")
+			return nil, 0, 0, 0, errors.Wrap(err, "getting value from iterator")
 		}
 
 		var perTick protobuff.AssetTransactionsPerTickDB
 		err = proto.Unmarshal(value, &perTick)
 		if err != nil {
-			return nil, 0, 0, errors.Wrap(err, "unmarshalling asset transactions per tick")
+			return nil, 0, 0, 0, errors.Wrap(err, "unmarshalling asset transactions per tick")
 		}
 		nextEndTick = tickNumber
 
@@ -986,7 +986,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 
 			txStatus, err := s.GetTransactionStatus(ctx, transactionId)
 			if err != nil {
-				return nil, 0, 0, errors.Wrap(err, "getting transaction status")
+				return nil, 0, 0, 0, errors.Wrap(err, "getting transaction status")
 			}
 
 			// Filter says we only want valid transfers
@@ -996,12 +996,12 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 
 			transaction, err := s.GetTransaction(ctx, transactionId)
 			if err != nil {
-				return nil, 0, 0, errors.Wrap(err, "get transaction by id")
+				return nil, 0, 0, 0, errors.Wrap(err, "get transaction by id")
 			}
 
 			tickData, err := s.GetTickData(ctx, tickNumber)
 			if err != nil {
-				return nil, 0, 0, errors.Wrap(err, "getting tick data")
+				return nil, 0, 0, 0, errors.Wrap(err, "getting tick data")
 			}
 
 			transactions = append(transactions, &IdetityAssetTransactions{
@@ -1016,7 +1016,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 				if i < (len(perTick.Transactions) - 1) {
 					nextTxnIndexStart = uint32(i + 1)
 				}
-				return transactions, nextEndTick, nextTxnIndexStart, nil
+				return transactions, nextEndTick, nextTxnIndexStart, lastProcessedTick.TickNumber, nil
 			}
 		}
 
@@ -1029,5 +1029,5 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 		firstTick = false // Reset firstTick flag after processing the first tick
 	}
 
-	return transactions, nextEndTick, nextTxnIndexStart, nil
+	return transactions, nextEndTick, nextTxnIndexStart, lastProcessedTick.TickNumber, nil
 }

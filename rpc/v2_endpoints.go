@@ -385,7 +385,7 @@ func (s *Server) GetIdentityTransfersInTickRangeV2(ctx context.Context, req *pro
 
 func (s *Server) GetIdentityAssetTransactionsV2(ctx context.Context, req *protobuff.GetIdentityAssetTransactionsRequestV2) (*protobuff.GetIdentityAssetTransactionsResponseV2, error) {
 	assetId := req.AssetIssuer + req.AssetName
-	txData, nextEndTick, nextTxnIndexStart, err := s.store.GetIdetityAssetTransactionsFromEnd(ctx, req.IncludeFailedTransactions, req.Identity, assetId, req.GetEndTick(), int(req.GetTxnIndexStart()), int(req.GetMaxTransactions()))
+	txData, nextEndTick, nextTxnIndexStart, currentTick, err := s.store.GetIdetityAssetTransactionsFromEnd(ctx, req.IncludeFailedTransactions, req.Identity, assetId, req.GetEndTick(), int(req.GetTxnIndexStart()), int(req.GetMaxTransactions()))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "getting asset transactions: %v", err)
 	}
@@ -446,6 +446,7 @@ func (s *Server) GetIdentityAssetTransactionsV2(ctx context.Context, req *protob
 	}
 
 	return &protobuff.GetIdentityAssetTransactionsResponseV2{
+		CurrentTick:       currentTick,
 		NextEndTick:       nextEndTick,
 		NextTxnIndexStart: nextTxnIndexStart,
 		Transactions:      transactions,

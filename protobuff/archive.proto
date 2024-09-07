@@ -294,9 +294,10 @@ message GetIdentityAssetTransactionsRequestV2 {
 }
 
 message GetIdentityAssetTransactionsResponseV2 {
-  uint32 next_end_tick = 1;
-  uint32 next_txn_index_start = 2;
-  repeated AssetTransaction transactions = 3;
+  uint32 current_tick = 1;
+  uint32 next_end_tick = 2;
+  uint32 next_txn_index_start = 3;
+  repeated AssetTransaction transactions = 4;
 }
 
 message AssetTransactionsPerTickDB { repeated string transactions = 2; }
