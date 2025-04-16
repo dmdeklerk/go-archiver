@@ -954,6 +954,12 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 			return nil, 0, 0, 0, errors.Wrap(err, "extracting tickNumber from key")
 		}
 
+		// TODO: This fetches all transactions for the tick but all we want is the timestamp
+		tickData, err := s.GetTickData(ctx, tickNumber)
+		if err != nil {
+			return nil, 0, 0, 0, errors.Wrap(err, "getting tick data")
+		}
+
 		value, err := iter.ValueAndErr()
 		if err != nil {
 			return nil, 0, 0, 0, errors.Wrap(err, "getting value from iterator")
@@ -997,11 +1003,6 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 			transaction, err := s.GetTransaction(ctx, transactionId)
 			if err != nil {
 				return nil, 0, 0, 0, errors.Wrap(err, "get transaction by id")
-			}
-
-			tickData, err := s.GetTickData(ctx, tickNumber)
-			if err != nil {
-				return nil, 0, 0, 0, errors.Wrap(err, "getting tick data")
 			}
 
 			transactions = append(transactions, &IdetityAssetTransactions{
