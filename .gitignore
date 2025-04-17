@@ -11,3 +11,13 @@ store/*.log
 
 go-archiver
 *.swagger.json
+
+
+
+### HEATWALLET ###
+extract_dennis_contributions.sh
+my_contributions.txt
+tmp_changed_files_cleaned.txt
+tmp_my_commits.txt
+deploy.sh
+### HEATWALLET ###
