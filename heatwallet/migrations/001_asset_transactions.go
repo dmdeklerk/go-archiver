@@ -1,0 +1,84 @@
+package migrations
+
+import (
+	"context"
+	"log"
+	"time"
+
+	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/asset_transactions"
+	"github.com/qubic/go-archiver/protobuff"
+	"github.com/qubic/go-archiver/store"
+	"github.com/qubic/go-archiver/validator/tx"
+)
+
+func AssetTransactionMigration(ps *store.PebbleStore) error {
+	log.Println("performing asset transaction migration...")
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
+	defer cancel()
+
+	if err := ps.ClearKeysByPrefix(store.IdentityAssetTransactions); err != nil {
+		return errors.Wrap(err, "deleting asset transactions")
+	}
+
+	lastTick, err := ps.GetLastProcessedTick(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting last processed tick")
+	}
+
+	firstTick, err := ps.FindFirstTickNumber()
+	if err != nil {
+		return errors.Wrap(err, "find first tick number")
+	}
+	log.Printf("[migration/001_asset_transaction] first tick is %d", firstTick)
+
+	tickCounter := 0
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	go func() {
+		for range ticker.C {
+			log.Printf("[migration/001_asset_transaction] processed %d ticks so far...", tickCounter)
+		}
+	}()
+
+	for tickNumber := firstTick; tickNumber <= lastTick.TickNumber; tickNumber++ {
+		tickTransactions, err := ps.GetTickTransactions(ctx, tickNumber)
+		if errors.Is(err, store.ErrNotFound) {
+			continue
+		} else if err != nil {
+			log.Printf("error retrieving tick data for tick number: %d: %v", tickNumber, err)
+			continue
+		}
+		err = processTickData(ctx, ps, tickNumber, tickTransactions)
+		if err != nil {
+			return errors.Wrap(err, "failed to proces tick")
+		}
+		tickCounter++
+	}
+
+	ticker.Stop()
+
+	log.Printf("[migration/001_asset_transaction] done processing ticks")
+
+	keyCount, err := ps.CountKeysInRange(store.IdentityAssetTransactions)
+	if err != nil {
+		return errors.Wrap(err, "cant count keys")
+	}
+	log.Printf("[migration/001_asset_transaction] number of asset transaction keys after migration %d", keyCount)
+
+	return nil
+}
+
+func processTickData(ctx context.Context, ps *store.PebbleStore, tickNumber uint32, tickTransactions []*protobuff.Transaction) error {
+	transactions, err := asset_transactions.ProtoToQubic(tickTransactions)
+	if err != nil {
+		return err
+	}
+
+	err = tx.StoreAssetTransactions(ctx, ps, tickNumber, transactions)
+	if err != nil {
+		return errors.Wrap(err, "failed to store asset transaction")
+	}
+	return nil
+}

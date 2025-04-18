@@ -1,0 +1,6 @@
+{
+  "protoc.includePaths": [
+    "${workspaceFolder}/protobuff",
+    "${workspaceFolder}/protobuff/google/api"
+  ]
+}

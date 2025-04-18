@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package qubic.archiver.archive.pb;
+
+option go_package = "github.com/qubic/go-archiver/protobuff/";
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "archive.proto";
+
+enum AssetTransactionType {
+  NATIVE_TRANSFER = 0;
+  QUTIL_SEND_MANY = 1;
+  QX_ASSET_TRANSFER = 2;
+}
+
+message AssetTransaction {
+  AssetTransactionType transaction_type = 1;
+  Transaction transaction = 2;
+  uint64 timestamp = 3;
+  bool money_flew = 4;
+  oneof payload {
+    SendManyTransaction qutil_send_many = 5;
+    AssetTransactionQxTransfer qx_asset_transfer = 6;
+  }
+}
+
+message AssetTransactionQxTransfer {
+  string asset_issuer = 1;
+  string asset_name = 2;
+  string source_id = 3;
+  string dest_id = 4;
+  uint64 amount = 5;
+}
+
+message GetIdentityAssetTransactionsRequestV2 {
+  string identity = 1;
+  string asset_issuer = 2;
+  string asset_name = 3;
+  uint32 end_tick = 4;
+  uint32 txn_index_start = 5;
+  uint32 max_transactions = 6;
+  bool include_failed_transactions = 7;
+}
+
+message GetIdentityAssetTransactionsResponseV2 {
+  uint32 current_tick = 1;
+  uint32 next_end_tick = 2;
+  uint32 next_txn_index_start = 3;
+  repeated AssetTransaction transactions = 4;
+}
+
+service HeatwalletService {
+  rpc GetIdentityAssetTransactionsV2(GetIdentityAssetTransactionsRequestV2)
+      returns (GetIdentityAssetTransactionsResponseV2) {
+    option (google.api.http) = {
+      get : "/v2/identities/{identity}/{asset_issuer}/{asset_name}/"
+            "asset-transactions"
+    };
+  };
+}
