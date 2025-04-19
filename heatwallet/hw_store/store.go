@@ -1,13 +1,38 @@
-// Coding Agent instructions START
-// The code below saves data to the pebble database
-// Coding Agent instructions END
+// HeatPebbleStore wraps a PebbleStore for Heatwallet-specific logic
+// It embeds a PebbleStore from the parent module (go-archiver/store)
+package hw_store
 
-func (s *PebbleStore) GetMigrationVersion() (uint32, error) {
+import (
+	"context"
+	"encoding/binary"
+	"log"
+	"time"
+
+	"github.com/cockroachdb/pebble"
+	hw_protobuff "github.com/dmdeklerk/go-archiver/heatwallet/proto"
+	"github.com/dmdeklerk/go-archiver/heatwallet/utils"
+	"github.com/pkg/errors"
+	"github.com/qubic/go-archiver/protobuff"
+	"github.com/qubic/go-archiver/store"
+	"google.golang.org/protobuf/proto"
+)
+
+// HeatPebbleStore wraps a PebbleStore for Heatwallet-specific logic
+type HeatPebbleStore struct {
+	Store *store.PebbleStore
+}
+
+// NewHeatPebbleStore creates a new HeatPebbleStore from a PebbleStore
+func NewHeatPebbleStore(parent *store.PebbleStore) *HeatPebbleStore {
+	return &HeatPebbleStore{Store: parent}
+}
+
+func (s *HeatPebbleStore) GetMigrationVersion() (uint32, error) {
 	var migrationVersionKey = []byte{DbMigrationVersion}
-	value, closer, err := s.db.Get(migrationVersionKey)
+	value, closer, err := s.Store.DB().Get(migrationVersionKey)
 	if err != nil {
 		if errors.Is(err, pebble.ErrNotFound) {
-			return 0, ErrNotFound
+			return 0, store.ErrNotFound
 		}
 		return 0, errors.Wrap(err, "retrieving migration version")
 	}
@@ -20,11 +45,11 @@ func (s *PebbleStore) GetMigrationVersion() (uint32, error) {
 	return version, nil
 }
 
-func (s *PebbleStore) SetMigrationVersion(version uint32) error {
+func (s *HeatPebbleStore) SetMigrationVersion(version uint32) error {
 	var buf [4]byte
 	binary.LittleEndian.PutUint32(buf[:], version)
 	var migrationVersionKey = []byte{DbMigrationVersion}
-	err := s.db.Set(migrationVersionKey, buf[:], pebble.Sync)
+	err := s.Store.DB().Set(migrationVersionKey, buf[:], pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting migration version")
 	}
@@ -32,7 +57,7 @@ func (s *PebbleStore) SetMigrationVersion(version uint32) error {
 }
 
 // CountKeysInRange counts all the keys in the Pebble database.
-func (s *PebbleStore) CountKeysInRange(prefixID byte) (int, error) {
+func (s *HeatPebbleStore) CountKeysInRange(prefixID byte) (int, error) {
 	startKey := []byte{prefixID}
 	endKey := make([]byte, len(startKey))
 	copy(endKey, startKey)
@@ -40,7 +65,7 @@ func (s *PebbleStore) CountKeysInRange(prefixID byte) (int, error) {
 
 	log.Printf("start counting keys in range...")
 	count := 0
-	iter, err := s.db.NewIter(&pebble.IterOptions{
+	iter, err := s.Store.DB().NewIter(&pebble.IterOptions{
 		UpperBound: endKey,
 		LowerBound: startKey,
 	}) // nil IterOptions means iterate over the entire database
@@ -73,7 +98,7 @@ func (s *PebbleStore) CountKeysInRange(prefixID byte) (int, error) {
 }
 
 // ClearKeysByPrefix deletes all keys starting with the specified prefix identifier.
-func (s *PebbleStore) ClearKeysByPrefix(prefixID byte) error {
+func (s *HeatPebbleStore) ClearKeysByPrefix(prefixID byte) error {
 	startKey := []byte{prefixID}
 	endKey := make([]byte, len(startKey))
 	copy(endKey, startKey)
@@ -86,7 +111,7 @@ func (s *PebbleStore) ClearKeysByPrefix(prefixID byte) error {
 
 	log.Printf("start key range deletion...")
 
-	if err := s.db.DeleteRange(startKey, endKey, pebble.Sync); err != nil {
+	if err := s.Store.DB().DeleteRange(startKey, endKey, pebble.Sync); err != nil {
 		return errors.Wrap(err, "deleting key range in batch")
 	}
 
@@ -102,9 +127,9 @@ func (s *PebbleStore) ClearKeysByPrefix(prefixID byte) error {
 	return nil
 }
 
-func (s *PebbleStore) FindFirstTickNumber() (uint32, error) {
-	startKey := tickDataKey(0) // Generates the lowest possible key
-	iter, err := s.db.NewIter(&pebble.IterOptions{
+func (s *HeatPebbleStore) FindFirstTickNumber() (uint32, error) {
+	startKey := store.TickDataKey(0) // Generates the lowest possible key
+	iter, err := s.Store.DB().NewIter(&pebble.IterOptions{
 		LowerBound: startKey,
 	})
 	if err != nil {
@@ -129,7 +154,7 @@ func (s *PebbleStore) FindFirstTickNumber() (uint32, error) {
 	return 0, errors.New("no tick data keys found")
 }
 
-func (s *PebbleStore) PutAssetTransactionsPerTick(identity string, assetId string, tickNumber uint32, txs *protobuff.AssetTransactionsPerTickDB) error {
+func (s *HeatPebbleStore) PutAssetTransactionsPerTick(identity string, assetId string, tickNumber uint32, txs *hw_protobuff.AssetTransactionsPerTickDB) error {
 	baseKey := identityAssetTransactionKey(identity, assetId)
 	key := identityAssetTransactionKeyWithTickNumber(baseKey, tickNumber)
 	serialized, err := proto.Marshal(txs)
@@ -137,7 +162,7 @@ func (s *PebbleStore) PutAssetTransactionsPerTick(identity string, assetId strin
 		return errors.Wrap(err, "serializing asset transaction proto")
 	}
 
-	err = s.db.Set(key, serialized, pebble.Sync)
+	err = s.Store.DB().Set(key, serialized, pebble.Sync)
 	if err != nil {
 		return errors.Wrap(err, "setting asset transactions per tick")
 	}
@@ -145,15 +170,15 @@ func (s *PebbleStore) PutAssetTransactionsPerTick(identity string, assetId strin
 	return nil
 }
 
-func (s *PebbleStore) PutAssetTransactionsPerTickBatch(identityMap map[string]map[string][]string, tickNumber uint32) error {
-	batch := s.db.NewBatch()
+func (s *HeatPebbleStore) PutAssetTransactionsPerTickBatch(identityMap map[string]map[string][]string, tickNumber uint32) error {
+	batch := s.Store.DB().NewBatch()
 	defer batch.Close()
 
 	for identity, assetIdMap := range identityMap {
 		for assetId, transactionIds := range assetIdMap {
 			baseKey := identityAssetTransactionKey(identity, assetId)
 			key := identityAssetTransactionKeyWithTickNumber(baseKey, tickNumber)
-			serialized, err := proto.Marshal(&protobuff.AssetTransactionsPerTickDB{
+			serialized, err := proto.Marshal(&hw_protobuff.AssetTransactionsPerTickDB{
 				Transactions: transactionIds,
 			})
 			if err != nil {
@@ -177,7 +202,7 @@ type IdetityAssetTransactions struct {
 	Transaction *protobuff.Transaction
 	MoneyFlew   bool
 	Timestamp   uint64
-	Payload     asset_transactions.TransactionWithAssetPayload
+	Payload     utils.TransactionWithAssetPayload
 }
 
 func extractTickNumberFromIdentityAssetTransactionKey(key []byte) (uint32, error) {
@@ -189,8 +214,8 @@ func extractTickNumberFromIdentityAssetTransactionKey(key []byte) (uint32, error
 	return uint32(tickNumber), nil
 }
 
-func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, includeFailedTransactions bool, identity, assetId string, endTick uint32, txnIndexStart, maxTransactions int) ([]*IdetityAssetTransactions, uint32, uint32, uint32, error) {
-	lastProcessedTick, err := s.GetLastProcessedTick(ctx)
+func (s *HeatPebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, includeFailedTransactions bool, identity, assetId string, endTick uint32, txnIndexStart, maxTransactions int) ([]*IdetityAssetTransactions, uint32, uint32, uint32, error) {
+	lastProcessedTick, err := s.Store.GetLastProcessedTick(ctx)
 	if err != nil {
 		return nil, 0, 0, 0, errors.Wrap(err, "fetching last processed tick")
 	}
@@ -207,7 +232,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 	baseKey := identityAssetTransactionKey(identity, assetId)
 	startKey := identityAssetTransactionKeyWithTickNumber(baseKey, 0)
 	endKey := identityAssetTransactionKeyWithTickNumber(baseKey, endTick+1)
-	iter, err := s.db.NewIter(&pebble.IterOptions{
+	iter, err := s.Store.DB().NewIter(&pebble.IterOptions{
 		LowerBound: startKey,
 		UpperBound: endKey,
 	})
@@ -231,7 +256,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 			return nil, 0, 0, 0, errors.Wrap(err, "extracting tickNumber from key")
 		}
 		// TODO: This fetches all transactions for the tick but all we want is the timestamp
-		tickData, err := s.GetTickData(ctx, tickNumber)
+		tickData, err := s.Store.GetTickData(ctx, tickNumber)
 		if err != nil {
 			return nil, 0, 0, 0, errors.Wrap(err, "getting tick data")
 		}
@@ -240,7 +265,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 			return nil, 0, 0, 0, errors.Wrap(err, "getting value from iterator")
 		}
 
-		var perTick protobuff.AssetTransactionsPerTickDB
+		var perTick hw_protobuff.AssetTransactionsPerTickDB
 		err = proto.Unmarshal(value, &perTick)
 		if err != nil {
 			return nil, 0, 0, 0, errors.Wrap(err, "unmarshalling asset transactions per tick")
@@ -265,7 +290,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 		for i := txnIndexStart; i < len(perTick.Transactions); i++ {
 			transactionId := perTick.Transactions[i]
 
-			txStatus, err := s.GetTransactionStatus(ctx, transactionId)
+			txStatus, err := s.Store.GetTransactionStatus(ctx, transactionId)
 			if err != nil {
 				return nil, 0, 0, 0, errors.Wrap(err, "getting transaction status")
 			}
@@ -275,7 +300,7 @@ func (s *PebbleStore) GetIdetityAssetTransactionsFromEnd(ctx context.Context, in
 				continue
 			}
 
-			transaction, err := s.GetTransaction(ctx, transactionId)
+			transaction, err := s.Store.GetTransaction(ctx, transactionId)
 			if err != nil {
 				return nil, 0, 0, 0, errors.Wrap(err, "get transaction by id")
 			}

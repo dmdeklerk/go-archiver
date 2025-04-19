@@ -2,9 +2,8 @@ syntax = "proto3";
 
 package qubic.archiver.archive.pb;
 
-option go_package = "github.com/qubic/go-archiver/protobuff/";
+option go_package = "github.com/dmdeklerk/go-archiver/heatwallet/proto";
 import "google/api/annotations.proto";
-import "google/protobuf/empty.proto";
 import "archive.proto";
 
 enum AssetTransactionType {
@@ -15,11 +14,11 @@ enum AssetTransactionType {
 
 message AssetTransaction {
   AssetTransactionType transaction_type = 1;
-  Transaction transaction = 2;
+  qubic.archiver.archive.pb.Transaction transaction = 2;
   uint64 timestamp = 3;
   bool money_flew = 4;
   oneof payload {
-    SendManyTransaction qutil_send_many = 5;
+    qubic.archiver.archive.pb.SendManyTransaction qutil_send_many = 5;
     AssetTransactionQxTransfer qx_asset_transfer = 6;
   }
 }
@@ -48,6 +47,8 @@ message GetIdentityAssetTransactionsResponseV2 {
   uint32 next_txn_index_start = 3;
   repeated AssetTransaction transactions = 4;
 }
+
+message AssetTransactionsPerTickDB { repeated string transactions = 1; }
 
 service HeatwalletService {
   rpc GetIdentityAssetTransactionsV2(GetIdentityAssetTransactionsRequestV2)

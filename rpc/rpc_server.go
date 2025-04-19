@@ -23,6 +23,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	heatwallet "github.com/dmdeklerk/go-archiver/heatwallet"
 )
 
 var _ protobuff.ArchiveServiceServer = &Server{}
@@ -523,6 +524,7 @@ func (s *Server) Start() error {
 	)
 	protobuff.RegisterArchiveServiceServer(srv, s)
 	reflection.Register(srv)
+	heatwallet.RegisterServices(srv, s.store)
 
 	lis, err := net.Listen("tcp", s.listenAddrGRPC)
 	if err != nil {
@@ -554,6 +556,10 @@ func (s *Server) Start() error {
 				s.listenAddrGRPC,
 				opts,
 			); err != nil {
+				panic(err)
+			}
+
+			if err := heatwallet.RegisterHTTPHandlers(mux, s.listenAddrGRPC, opts); err != nil {
 				panic(err)
 			}
 

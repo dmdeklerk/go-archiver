@@ -5,7 +5,8 @@ import (
 
 	"encoding/hex"
 
-	"github.com/qubic/go-archiver/qx"
+	"github.com/dmdeklerk/go-archiver/heatwallet/qx"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

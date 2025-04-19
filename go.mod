@@ -1,6 +1,6 @@
 module github.com/qubic/go-archiver
 
-go 1.22.2
+go 1.23.0
 
 require (
 	github.com/ardanlabs/conf v1.5.0
@@ -55,3 +55,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240930140551-af27646dc61f // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+require github.com/dmdeklerk/go-archiver/heatwallet v0.0.0
+
+replace github.com/dmdeklerk/go-archiver/heatwallet => ./heatwallet

@@ -3,17 +3,18 @@ package migrations
 import (
 	"log"
 
+	"github.com/dmdeklerk/go-archiver/heatwallet/hw_store"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 )
 
-type MigrationFunc func(ps *store.PebbleStore) error
+type MigrationFunc func(ps *hw_store.HeatPebbleStore) error
 
 var migrations = []MigrationFunc{
 	AssetTransactionMigration,
 }
 
-func PerformMigrations(ps *store.PebbleStore) error {
+func PerformMigrations(ps *hw_store.HeatPebbleStore) error {
 	// We always run the deletion task to delete the quorum data as we dont use that.
 	err := DeleteUnusedDataMigration(ps)
 	if err != nil {

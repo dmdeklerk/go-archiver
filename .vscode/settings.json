@@ -1,6 +1,8 @@
 {
-  "protoc.includePaths": [
-    "${workspaceFolder}/protobuff",
-    "${workspaceFolder}/protobuff/google/api"
-  ]
+  "protoc": {
+    "options": [
+      "--proto_path=${workspaceRoot}/heatwallet/proto",
+      "--proto_path=${workspaceRoot}/protobuff"
+    ]
+  }
 }

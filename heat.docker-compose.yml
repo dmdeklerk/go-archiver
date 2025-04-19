@@ -1,10 +1,15 @@
+version: "3"
+
 services:
   qubic-http:
     image: ghcr.io/qubic/qubic-http:v0.8.0
-    container_name: qubic-http
+    container_name: heat-qubic-http
+    ports:
+      - "127.0.0.1:8083:8000"
     environment:
       QUBIC_API_SIDECAR_SERVER_HTTP_HOST: "0.0.0.0:8000"
       QUBIC_API_SIDECAR_SERVER_GRPC_HOST: "0.0.0.0:8001"
+      QUBIC_API_SIDECAR_SERVER_MAX_TICK_FETCH_URL: "http://qubic-nodes:8080/max-tick"
       QUBIC_API_SIDECAR_POOL_NODE_FETCHER_URL: "http://qubic-nodes:8080/status"
       QUBIC_API_SIDECAR_POOL_NODE_FETCHER_TIMEOUT: "20s"
     networks:
@@ -15,8 +20,10 @@ services:
     restart: always
 
   qubic-archiver:
-    image: ghcr.io/qubic/qubic-archiver:v0.10.1
-    container_name: qubic-archiver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: heat-qubic-archiver
     ports:
       - "127.0.0.1:8001:8000"
     environment:
@@ -25,9 +32,8 @@ services:
       QUBIC_ARCHIVER_SERVER_CHAIN_TICK_FETCH_URL: "http://qubic-nodes:8080/max-tick"
       QUBIC_ARCHIVER_POOL_NODE_FETCHER_URL: "http://qubic-nodes:8080/status"
       QUBIC_ARCHIVER_QUBIC_PROCESS_TICK_TIMEOUT: "20s"
-      QUBIC_ARCHIVER_QUBIC_DISABLE_TRANSACTION_STATUS_ADDON: "false"
     volumes:
-      - ./store/archiver:/app/store
+      - /root/go-archiver-data/archiver:/app/store
     networks:
       - archiver
     depends_on:
@@ -36,15 +42,14 @@ services:
     restart: always
 
   qubic-nodes:
-    image: ghcr.io/qubic/qubic-nodes:v2.0.1
-    container_name: qubic-nodes
+    image: ghcr.io/qubic/qubic-nodes:v2.1.0
+    container_name: heat-qubic-nodes
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      # QUBIC_NODES_QUBIC_PEER_LIST: "1.2.3.4;2.3.4.5"
       QUBIC_NODES_QUBIC_PEER_LIST: "213.163.64.134;62.113.194.94;176.223.119.33;45.152.160.22;176.223.119.131;62.2.98.74;213.144.153.61;178.237.58.224;213.163.64.156;178.237.58.209;188.241.26.108;176.223.119.38;62.2.98.75;217.209.209.169;98.98.164.170;95.143.49.162;98.98.164.171;31.204.159.143;5.39.216.162"
     volumes:
-      - ./store/qubic-nodes:/app/store
+      - /root/go-archiver-data/qubic-nodes:/app/store
     networks:
       - archiver
     healthcheck:

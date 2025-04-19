@@ -2,15 +2,15 @@
 // The code below parses several types of qubic transactions
 // Coding Agent instructions END
 
-package asset_transactions
+package utils
 
 import (
 	"encoding/hex"
 	"log"
 
+	"github.com/dmdeklerk/go-archiver/heatwallet/qx"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/protobuff"
-	"github.com/qubic/go-archiver/qx"
 	"github.com/qubic/go-node-connector/types"
 )
 

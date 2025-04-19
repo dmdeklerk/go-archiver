@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/dmdeklerk/go-archiver/heatwallet/hw_store"
 	"github.com/pkg/errors"
 	"github.com/qubic/go-archiver/store"
 )
@@ -15,7 +16,7 @@ import (
 
 var DeleteQuorumData = true
 
-func DeleteUnusedDataMigration(ps *store.PebbleStore) error {
+func DeleteUnusedDataMigration(ps *hw_store.HeatPebbleStore) error {
 	_, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
